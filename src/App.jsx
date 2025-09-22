@@ -53,11 +53,29 @@ function App() {
       setModelLoading(true)
       try {
         console.log('Loading COCO-SSD model...')
-        const loadedModel = await cocoSsd.load()
+        
+        // Set TensorFlow.js backend for better compatibility
+        await tf.ready()
+        console.log('TensorFlow.js backend:', tf.getBackend())
+        
+        const loadedModel = await cocoSsd.load({
+          base: 'mobilenet_v2' // Use more compatible model version
+        })
         setModel(loadedModel)
         console.log('Model loaded successfully!')
       } catch (error) {
         console.error('Error loading model:', error)
+        // Retry with lite model if main model fails
+        try {
+          console.log('Retrying with lite model...')
+          const liteModel = await cocoSsd.load({
+            base: 'lite_mobilenet_v2'
+          })
+          setModel(liteModel)
+          console.log('Lite model loaded successfully!')
+        } catch (retryError) {
+          console.error('Failed to load any model:', retryError)
+        }
       } finally {
         setModelLoading(false)
       }
@@ -122,9 +140,24 @@ function App() {
   const handleImageUpload = (event) => {
     const file = event.target.files[0]
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file!')
+        return
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image file is too large! Please select an image smaller than 10MB.')
+        return
+      }
+
       const reader = new FileReader()
       reader.onload = (e) => {
         setUploadedImage(e.target.result)
+      }
+      reader.onerror = () => {
+        alert('Error reading file! Please try a different image.')
       }
       reader.readAsDataURL(file)
     }
@@ -132,8 +165,13 @@ function App() {
 
   // Analyze uploaded image with AI
   const analyzeUploadedImage = async () => {
-    if (!uploadedImage || !model) {
-      alert('Please upload an image and ensure AI model is loaded!')
+    if (!uploadedImage) {
+      alert('Please upload an image first!')
+      return
+    }
+    
+    if (!model) {
+      alert('AI model is still loading. Please wait a moment and try again.')
       return
     }
 
@@ -142,6 +180,11 @@ function App() {
 
     try {
       const img = imageRef.current
+      
+      // Ensure image is loaded
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        throw new Error('Image not loaded properly')
+      }
       
       // Use AI to detect objects in the uploaded image
       console.log('Analyzing uploaded image with AI...')
