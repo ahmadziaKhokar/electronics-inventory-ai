@@ -139,27 +139,60 @@ function App() {
   // Handle image upload
   const handleImageUpload = (event) => {
     const file = event.target.files[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file!')
-        return
-      }
-      
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('Image file is too large! Please select an image smaller than 10MB.')
-        return
-      }
+    if (!file) {
+      console.log('No file selected')
+      return
+    }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setUploadedImage(e.target.result)
-      }
-      reader.onerror = () => {
-        alert('Error reading file! Please try a different image.')
-      }
+    console.log('File selected:', file.name, file.type, file.size)
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      console.error('Invalid file type:', file.type)
+      alert('Please select a valid image file!')
+      return
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      console.error('File too large:', file.size)
+      alert('Image file is too large! Please select an image smaller than 10MB.')
+      return
+    }
+
+    console.log('Starting FileReader...')
+    const reader = new FileReader()
+    
+    reader.onloadstart = () => {
+      console.log('FileReader started')
+    }
+    
+    reader.onprogress = (e) => {
+      console.log('FileReader progress:', e.loaded, '/', e.total)
+    }
+    
+    reader.onload = (e) => {
+      console.log('FileReader success, result length:', e.target.result.length)
+      setUploadedImage(e.target.result)
+      console.log('Image state updated')
+    }
+    
+    reader.onerror = (e) => {
+      console.error('FileReader error:', e, reader.error)
+      alert(`Error reading file: ${reader.error?.message || 'Unknown error'}`)
+    }
+    
+    reader.onabort = () => {
+      console.error('FileReader aborted')
+      alert('File reading was aborted')
+    }
+
+    try {
       reader.readAsDataURL(file)
+      console.log('FileReader.readAsDataURL called')
+    } catch (error) {
+      console.error('Error calling readAsDataURL:', error)
+      alert('Failed to start reading file')
     }
   }
 
